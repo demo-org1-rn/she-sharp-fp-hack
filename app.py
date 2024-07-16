@@ -6,7 +6,7 @@ from azure.core.credentials import AzureKeyCredential
 
 # Put the keys and endpoints here (never put your real keys in the code)
 AOAI_ENDPOINT = "https://polite-ground-030dc3103.4.azurestaticapps.net/api/v1"
-AOAI_KEY = "90375df3-fbd6-4030-8d43-9d93938091e5"
+AOAI_KEY = "YOUR KEY HERE"
 MODEL_NAME = "shesharp-fp-hack-gpt35-turbo-16k"
 
 # Set up the client for AI Chat using the contstants and API Version
