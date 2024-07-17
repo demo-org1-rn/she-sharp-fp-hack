@@ -6,8 +6,14 @@ from azure.core.credentials import AzureKeyCredential
 
 # Put the keys and endpoints here (never put your real keys in the code)
 AOAI_ENDPOINT = "https://polite-ground-030dc3103.4.azurestaticapps.net/api/v1"
-AOAI_KEY = "YOUR KEY HERE"
+AOAI_KEY = "90375df3-fbd6-4030-8d43-9d93938091e5"
 MODEL_NAME = "shesharp-fp-hack-gpt35-turbo-16k"
+
+# Search endpoints, etc
+SEARCH_ENDPOINT = "https://polite-ground-030dc3103.4.azurestaticapps.net/api/v1"
+SEARCH_KEY = "90375df3-fbd6-4030-8d43-9d93938091e5"
+AZURE_SEARCH_INDEX = "margiestraveldocs"
+
 
 # Set up the client for AI Chat using the contstants and API Version
 client = AzureOpenAI(
@@ -16,18 +22,33 @@ client = AzureOpenAI(
     api_version="2024-05-01-preview",
 )
 
+search_client = SearchClient(
+    endpoint= SEARCH_ENDPOINT,
+    credential=AzureKeyCredential(SEARCH_KEY),
+    index_name=AZURE_SEARCH_INDEX
+    )
+
 # Set the tone of the conversation
-SYSTEM_MESSAGE = "You are a helpful AI assistant that can answer questions and provide information, you are a surfer dude, make sure we know it. You can also provide sources for your information."
+SYSTEM_MESSAGE = "You are a helpful AI assistant that can answer questions and provide information, you are a surfer dude let us know it. You must use the provided sources."
 
 
 
 # PUT YOUR CODE FOR GETTING YOUR AI ANSWER INSIDE THIS FUNCTION
 def get_response(question, message_history=[]):
-  # Create the message history
-  messages=[
-      {"role": "system", "content": SYSTEM_MESSAGE},
-      {"role": "user", "content": question},
-  ]
+  search_results = search_client.search(search_text=question)
+  search_summary = " ".join(result["content"] for result in search_results)    
+
+  # Create a new message history if there isn't one
+  if not message_history:
+      messages=[
+          {"role": "system", "content": SYSTEM_MESSAGE},
+          {"role": "user", "content": question + "\nSources: " + search_summary},
+      ]
+  # Otherwise, append the user's question to the message history
+  else:
+      messages = message_history + [
+          {"role": "user", "content": question + "\nSources: " + search_summary},
+      ]
 
   # Get the answer using the GPT model (create 1 answer (n) and use a temperature of 0.7 to set it to be pretty creative/random)
   response = client.chat.completions.create(model=MODEL_NAME,temperature=0.7,n=1,messages=messages)
@@ -82,7 +103,27 @@ def ask_response():
     return get_response(question)
 
 
+@app.get('/ask')
+def ask():
+    return render_template("ask.html")
 
+@app.route('/contextless-message', methods=['GET', 'POST'])
+def contextless_message():
+    question = request.json['message']
+    resp = get_response(question)
+    return {"resp": resp[0]}
+
+@app.get('/chat')
+def chat():
+    return render_template('chat.html')
+
+@app.route("/context-message", methods=["GET", "POST"])
+def context_message():
+    question = request.json["message"]
+    context = request.json["context"]
+
+    resp, context = get_response(question, context)
+    return {"resp": resp, "context": context}
 
 
 # This is for when there is not a matching route. 
